@@ -38,9 +38,9 @@ class Solver(object):
       #optimizer
       self.global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
       learning_rate = tf.train.exponential_decay(self.learning_rate, self.global_step,
-                                           500000, 0.5, staircase=True)
-      optimizer = tf.train.RMSPropOptimizer(learning_rate, decay=0.95, momentum=0.9, epsilon=1e-8)
-      self.train_op = optimizer.minimize(self.net.loss, global_step=self.global_step)
+                                           500000, 0.5, staircase=True, name='lr_expDecay')
+      optimizer = tf.train.RMSPropOptimizer(learning_rate, decay=0.95, momentum=0.9, epsilon=1e-8, name='RMSopt')
+      self.train_op = optimizer.minimize(self.net.loss, global_step=self.global_step, name='RMSmin')
   def train(self):
     init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
     summary_op = tf.summary.merge_all()
