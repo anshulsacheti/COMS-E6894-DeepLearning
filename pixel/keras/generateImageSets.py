@@ -51,21 +51,29 @@ def generate_GT_HR_sets(path):
             hrImage  = hrImages[pos+1]
             gtImage2 = gtImages[pos+1]
 
-            gtImage  = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage)
-            hrImage  = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+hrImage)
-            gtImage2 = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage2)
+            imageSet = [gtImage, hrImage, gtImage2]
 
-            #If one image not RGB, assume all aren't
-            if gtImage.mode != 'RGB':
-                gtImage  = gtImage.convert('RGB')
-                hrImage  = hrImage.convert('RGB')
-                gtImage2 = gtImage2.convert('RGB')
 
-            gtImage  = np.asarray(gtImage, dtype=np.float32)
-            hrImage  = np.asarray(hrImage, dtype=np.float32)
-            gtImage2 = np.asarray(gtImage2, dtype=np.float32)
+            # gtImage  = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage)
+            # hrImage  = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+hrImage)
+            # gtImage2 = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage2)
 
-            dataset.append([gtImage, hrImage, gtImage2])
+            for i,img in enumerate(imageSet):
+                imageSet[i]=pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+imageSet[i])
+                imageSet[i]=imageSet[i].convert('RGB')
+                imageSet[i]=np.asarray(imageSet[i], dtype=np.float32)
+
+            # #If one image not RGB, assume all aren't
+            # if gtImage.mode != 'RGB':
+            #     gtImage  = gtImage.convert('RGB')
+            #     hrImage  = hrImage.convert('RGB')
+            #     gtImage2 = gtImage2.convert('RGB')
+            #
+            # gtImage  = np.asarray(gtImage, dtype=np.float32)
+            # hrImage  = np.asarray(hrImage, dtype=np.float32)
+            # gtImage2 = np.asarray(gtImage2, dtype=np.float32)
+
+            dataset.append(imageSet)
     return np.array(dataset)
 
 if __name__=='__main__':
