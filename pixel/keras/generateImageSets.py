@@ -38,12 +38,12 @@ def generate_GT_HR_sets(path):
     for gifFolder in os.listdir(path):
 
         subdirs = os.listdir(path+"/"+gifFolder)
-        if not('gt' in subdirs and 'lr' in subdirs and 'hr' in subdirs):
+        if not('gen' in subdirs and 'lr' in subdirs and 'hr' in subdirs):
             raise ValueError('could not find gt lr and hr subdirs in %s'
                                 % (path+"/"+gifFolder))
         hrImages = os.listdir(path+"/"+gifFolder+"/"+"hr")
         lrImages = os.listdir(path+"/"+gifFolder+"/"+"lr")
-        gtImages = os.listdir(path+"/"+gifFolder+"/"+"gt")
+        gtImages = os.listdir(path+"/"+gifFolder+"/"+"gen")
 
         #Take up to 2nd to last image
         for pos in xrange(len(gtImages)-1):
@@ -52,6 +52,7 @@ def generate_GT_HR_sets(path):
             gtImage2 = gtImages[pos+1]
 
             imageSet = [gtImage, hrImage, gtImage2]
+            folderSet= ["gen","hr","gen"]
 
 
             # gtImage  = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage)
@@ -59,7 +60,7 @@ def generate_GT_HR_sets(path):
             # gtImage2 = pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+gtImage2)
 
             for i,img in enumerate(imageSet):
-                imageSet[i]=pil_image.open(path+"/"+gifFolder+"/"+"gt"+"/"+imageSet[i])
+                imageSet[i]=pil_image.open(path+"/"+gifFolder+"/"+folderSet[i]+"/"+imageSet[i])
                 imageSet[i]=imageSet[i].convert('RGB')
                 imageSet[i]=np.asarray(imageSet[i], dtype=np.float32)
 
