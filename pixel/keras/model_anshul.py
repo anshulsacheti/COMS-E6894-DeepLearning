@@ -2,17 +2,17 @@ from __future__ import print_function
 
 import keras
 import generateImageSets
-from keras.datasets import mnist
-from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.models import Sequential, Input
+from keras.layers import Dense, Activation, TimeDistributed
 from keras.layers import SimpleRNN, Conv2D, LSTM, Embedding, MaxPool2D
 from keras.layers.convolutional import Conv3D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras import initializers
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, adam
 
 from PIL import Image
 import keras.callbacks
+import numpy as np
 
 batch_size = 1
 epochs = 300
@@ -21,13 +21,22 @@ hidden_units = 100
 learning_rate = 1e-6
 clip_norm = 1.0
 
+height = 32
+width = 64
+channels = 3
+
 # the data, shuffled and split between train and test sets
 dataset = generateImageSets.generate_GT_HR_sets("../../dataset/")
 x_train = dataset[:,:-1,:,:,:]; y_train = dataset[:,-1,:,:,:]
-x_train = x_train.reshape(x_train.shape[0],64,32,3)
-testVal=x_train[0].reshape(1,64,32,3)
-input_shape = x_train.shape[1:]
+x_train = x_train.reshape(x_train.shape[0],height,width,channels)
 
+#x_gt has all even column, x_hr has all odd, or vice-versa
+x_gt = dataset[:,0,:,:,:]
+x_hr = dataset[:,1,:,:,:]
+x_train = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+
+testVal=x_train[0].reshape(1,height,width,channels)
+input_shape = x_train.shape[1:]
 
 print('Evaluate IRNN...')
 
@@ -40,27 +49,53 @@ class PeriodicImageGenerator(keras.callbacks.Callback):
     def on_epoch_end(self, batch, logs={}):
         self.epochs += 1
         if self.epochs % 25 == 0:
+            testVal = x_train[np.random.randint(len(x_train)-1)]
+            image = Image.fromarray(testVal.astype('uint8'), 'RGB')
+            image.save('image'+str(self.epochs)+'.jpg')
+
+            testVal=testVal.reshape(1, height, width, channels)
+
             val=model.predict(testVal,1,verbose=1)
             val=val.reshape(32,32,3)
             image = Image.fromarray(val.astype('uint8'), 'RGB')
-            image.save('image'+str(self.epochs)+'.jpg')
+            image.save('image'+str(self.epochs)+'_predicted.jpg')
             # Do stuff like printing metrics
 
 PIG = PeriodicImageGenerator()
 model = Sequential()
+row, col, pixel = x_train.shape[1:]
+row_hidden = 512
+col_hidden = 512
+# 4D input.
+x = Input(shape=(row, col, pixel))
+
+# Encodes a row of pixels using TimeDistributed Wrapper.
+encoded_rows = TimeDistributed(LSTM(row_hidden))(x)
+
+# Encodes columns of encoded rows.
+encoded_columns = LSTM(col_hidden)(encoded_rows)
+
 model.add(Conv2D(32, kernel_size=(1, 1),
                  activation='relu',
-                 input_shape=(64,32,3)))
-model.add(MaxPool2D(pool_size=(2,1)))
-model.add(Conv2D(3, (1, 1), activation='relu'))
+                 input_shape=(height,width,channels)))
+model.add(MaxPool2D(pool_size=(1,2)))
+model.add(Conv2D(32, (1, 1), activation='relu'))
+model.add(Conv2D(64, (1, 1), activation='relu'))
+model.add(Conv2D(128, (1, 1), activation='relu'))
+model.add(Conv2D(64, (1, 1), activation='relu'))
+model.add(Conv2D(32, (1, 1), activation='relu'))
+model.add(Conv2D(3, (1, 1), padding="same", activation="relu"))
+#model.add(Dense(32))
+model.add(Activation('relu'))
 #model.add(Embedding(256, output_dim=256))
 # model.add(LSTM( 128,
 #                 kernel_initializer=keras.initializers.RandomNormal(stddev=0.001),
 #                 recurrent_initializer=initializers.Identity(gain=1.0),
 #                 activation='relu'))
+adam = adam(lr=learning_rate)
 rmsprop = RMSprop(lr=learning_rate)
-model.compile(loss='binary_crossentropy',
-              optimizer=rmsprop,
+model.compile(loss='mean_squared_error',
+              optimizer=adam,
               metrics=['accuracy'])
 
 model.fit(x_train, y_train,
