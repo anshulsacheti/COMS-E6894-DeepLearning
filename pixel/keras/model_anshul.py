@@ -3,7 +3,7 @@ from __future__ import print_function
 import keras
 import generateImageSets
 from keras.models import Sequential, Input
-from keras.layers import Dense, Activation, TimeDistributed
+from keras.layers import Dense, Activation, TimeDistributed, SeparableConv2D
 from keras.layers import SimpleRNN, Conv2D, LSTM, Embedding, MaxPool2D
 from keras.layers.convolutional import Conv3D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
@@ -14,7 +14,7 @@ from PIL import Image
 import keras.callbacks
 import numpy as np
 
-batch_size = 1
+batch_size = 32
 epochs = 300
 hidden_units = 100
 
@@ -82,9 +82,11 @@ model.add(MaxPool2D(pool_size=(1,2)))
 model.add(Conv2D(32, (1, 1), activation='relu'))
 model.add(Conv2D(64, (1, 1), activation='relu'))
 model.add(Conv2D(128, (1, 1), activation='relu'))
+model.add(SeparableConv2D(128, (1,1)))
 model.add(Conv2D(64, (1, 1), activation='relu'))
 model.add(Conv2D(32, (1, 1), activation='relu'))
 model.add(Conv2D(3, (1, 1), padding="same", activation="relu"))
+
 #model.add(Dense(32))
 model.add(Activation('relu'))
 #model.add(Embedding(256, output_dim=256))
