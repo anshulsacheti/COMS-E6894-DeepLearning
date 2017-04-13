@@ -27,18 +27,23 @@ channels = 3
 
 # the data, shuffled and split between train and test sets
 dataset = generateImageSets.generate_GT_HR_sets("../../dataset/")
-x_train = dataset[:,:-1,:,:,:]; y_train = dataset[:,-1,:,:,:]
-x_train = x_train.reshape(x_train.shape[0],height,width,channels)
+x_train = dataset[:-10,:-1,:,:,:]; y_train = dataset[:-10,-1,:,:,:]
+x_test = dataset[-10:,:-1,:,:,:]; y_test = dataset[-10:,-1,:,:,:]
+#x_train = x_train.reshape(x_train.shape[0],height,width,channels)
 
 #x_gt has all even column, x_hr has all odd, or vice-versa
-x_gt = dataset[:,0,:,:,:]
-x_hr = dataset[:,1,:,:,:]
+x_gt = x_train[:,0,:,:,:]
+x_hr = x_train[:,1,:,:,:]
 x_train = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+
+x_gt = x_test[:,0,:,:,:]
+x_hr = x_test[:,1,:,:,:]
+x_test = np.insert(x_hr, np.arange(32), x_gt, axis=2)
 
 testVal=x_train[0].reshape(1,height,width,channels)
 input_shape = x_train.shape[1:]
 
-print('Evaluate IRNN...')
+print('Evaluating...')
 
 class PeriodicImageGenerator(keras.callbacks.Callback):
 
@@ -106,6 +111,23 @@ model.fit(x_train, y_train,
           verbose=1,
           validation_split=0.02,
           callbacks=[PIG])
+
+# Test model
+for i in xrange(x_test.shape[0]):
+
+    testVal = x_test[i]
+    image = Image.fromarray(testVal.astype('uint8'), 'RGB')
+    image.save('image'+str(i)+'_Test.jpg')
+
+    testVal=testVal.reshape(1, height, width, channels)
+
+    val=model.predict(testVal,1,verbose=1)
+    val=val.reshape(32,32,3)
+    image = Image.fromarray(val.astype('uint8'), 'RGB')
+    image.save('image'+str(i)+'_Test_predicted.jpg')
+
+# Save out model
+model.save('kerasModel_anshul.h5')
 
 # scores = model.evaluate(x_test, y_test, verbose=0)
 # print('IRNN test score:', scores[0])
