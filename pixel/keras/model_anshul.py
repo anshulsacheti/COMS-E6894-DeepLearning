@@ -5,7 +5,7 @@ import generateImageSets
 from keras.models import Sequential, Input
 from keras.layers import Dense, Activation, TimeDistributed, SeparableConv2D
 from keras.layers import SimpleRNN, Conv2D, LSTM, Embedding, MaxPool2D, Dropout
-from keras.layers import MaxPool3D
+from keras.layers import MaxPool3D, Reshape
 from keras.layers.convolutional import Conv3D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras import initializers
@@ -18,33 +18,34 @@ import numpy as np
 batch_size = 32
 epochs = 300
 hidden_units = 100
+attend_size=2
 
 learning_rate = 1e-6
 clip_norm = 1.0
 
 height = 32
-width = 64
+width = 32
 channels = 3
 
 # the data, shuffled and split between train and test sets
-dataset = generateImageSets.generate_GT_HR_sets("../../dataset/")
-x_train = dataset[:-10,:-1,:,:,:]; y_train = dataset[:-10,-1,:,:,:]
-x_test = dataset[-10:,:-1,:,:,:]; y_test = dataset[-10:,-1,:,:,:]
+dataset = generateImageSets.generate_GT_HR_attention_sets(path="../../dataset/", steps=attend_size)
+x_train = dataset[:-10,:attend_size+1,:,:,:]; y_train = dataset[:-10,attend_size+1:,:,:,:]
+x_test = dataset[-10:,attend_size+1,:,:,:]; y_test = dataset[-10:,attend_size+1:,:,:,:]
 #x_train = x_train.reshape(x_train.shape[0],height,width,channels)
 
-#x_gt has all even column, x_hr has all odd, or vice-versa
-x_gt = x_train[:,0,:,:,:]
-x_hr = x_train[:,1,:,:,:]
-x_train = np.insert(x_hr, np.arange(32), x_gt, axis=2)
-x_train = x_train.reshape(x_train.shape[0],1,height,width,channels)
+# x_gt has all even column, x_hr has all odd, or vice-versa
+# x_gt = x_train[:,0,:,:,:]
+# x_hr = x_train[:,1,:,:,:]
+# x_train = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+#x_train = x_train.reshape(x_train.shape[0],1,height,width,channels)
 
-x_gt = x_test[:,0,:,:,:]
-x_hr = x_test[:,1,:,:,:]
-x_test = np.insert(x_hr, np.arange(32), x_gt, axis=2)
-x_test = x_test.reshape(x_test.shape[0],1,height,width,channels)
+# x_gt = x_test[:,0,:,:,:]
+# x_hr = x_test[:,1,:,:,:]
+# x_test = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+#x_test = x_test.reshape(x_test.shape[0],1,height,width,channels)
 
-y_train = y_train.reshape(y_train.shape[0],1,height,32,channels)
-y_test = y_test.reshape(y_test.shape[0],1,height,32,channels)
+y_train = y_train.reshape(y_train.shape[0],attend_size+1,height,32,channels)
+y_test = y_test.reshape(y_test.shape[0],attend_size+1,height,32,channels)
 #testVal=x_train[0].reshape(1,height,width,channels)
 #input_shape = x_train.shape[1:]
 
@@ -60,10 +61,11 @@ class PeriodicImageGenerator(keras.callbacks.Callback):
         self.epochs += 1
         if self.epochs % 25 == 0:
             testVal = x_train[np.random.randint(len(x_train)-1)]
+            testVal = testVal.reshape(testVal.shape[1:])
             image = Image.fromarray(testVal.astype('uint8'), 'RGB')
             image.save('image'+str(self.epochs)+'.jpg')
 
-            testVal=testVal.reshape(1, height, width, channels)
+            testVal=testVal.reshape(1, 1, height, width, channels)
 
             val=model.predict(testVal,1,verbose=1)
             val=val.reshape(32,32,3)
@@ -81,7 +83,7 @@ col_hidden = 512
 
 # Encodes a row of pixels using TimeDistributed Wrapper.
 model.add(TimeDistributed(Conv2D(32, kernel_size=(1, 1),
-                 activation='relu'), input_shape=(1,height,width,channels)))
+                 activation='relu'), input_shape=(attend_size+1,height,width,channels)))
 
 # Encodes columns of encoded rows.
 # model.add(LSTM(col_hidden))
@@ -89,7 +91,8 @@ model.add(TimeDistributed(Conv2D(32, kernel_size=(1, 1),
 #                  activation='relu',
 #                  input_shape=(height,width,channels)))
 model.add(Dropout(0.15))
-model.add(MaxPool3D(pool_size=(1,1,2)))
+#model.add(Reshape(32,))
+model.add(MaxPool3D(pool_size=(1,1,1)))
 model.add(Conv3D(32, (1, 1, 1), activation='relu'))
 model.add(Conv3D(64, (1, 1, 1), activation='relu'))
 model.add(Conv3D(128, (1, 1, 1), activation='relu'))
@@ -99,6 +102,7 @@ model.add(Conv3D(64, (1, 1, 1), activation='relu'))
 model.add(Conv3D(3, (1, 1, 1), padding="same", activation="relu"))
 
 model.add(Dense(3))
+model.add(MaxPool3D(pool_size=(1,1,1)))
 model.add(Activation('relu'))
 #model.add(Embedding(256, output_dim=256))
 # model.add(LSTM( 128,
