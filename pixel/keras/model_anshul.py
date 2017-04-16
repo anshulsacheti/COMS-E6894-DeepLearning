@@ -4,7 +4,8 @@ import keras
 import generateImageSets
 from keras.models import Sequential, Input
 from keras.layers import Dense, Activation, TimeDistributed, SeparableConv2D
-from keras.layers import SimpleRNN, Conv2D, LSTM, Embedding, MaxPool2D
+from keras.layers import SimpleRNN, Conv2D, LSTM, Embedding, MaxPool2D, Dropout
+from keras.layers import MaxPool3D
 from keras.layers.convolutional import Conv3D
 from keras.layers.convolutional_recurrent import ConvLSTM2D
 from keras import initializers
@@ -35,13 +36,17 @@ x_test = dataset[-10:,:-1,:,:,:]; y_test = dataset[-10:,-1,:,:,:]
 x_gt = x_train[:,0,:,:,:]
 x_hr = x_train[:,1,:,:,:]
 x_train = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+x_train = x_train.reshape(x_train.shape[0],1,height,width,channels)
 
 x_gt = x_test[:,0,:,:,:]
 x_hr = x_test[:,1,:,:,:]
 x_test = np.insert(x_hr, np.arange(32), x_gt, axis=2)
+x_test = x_test.reshape(x_test.shape[0],1,height,width,channels)
 
-testVal=x_train[0].reshape(1,height,width,channels)
-input_shape = x_train.shape[1:]
+y_train = y_train.reshape(y_train.shape[0],1,height,32,channels)
+y_test = y_test.reshape(y_test.shape[0],1,height,32,channels)
+#testVal=x_train[0].reshape(1,height,width,channels)
+#input_shape = x_train.shape[1:]
 
 print('Evaluating...')
 
@@ -68,31 +73,32 @@ class PeriodicImageGenerator(keras.callbacks.Callback):
 
 PIG = PeriodicImageGenerator()
 model = Sequential()
-row, col, pixel = x_train.shape[1:]
+row, col, pixel = x_train.shape[2:]
 row_hidden = 512
 col_hidden = 512
 # 4D input.
-x = Input(shape=(row, col, pixel))
+#model.add(Input(shape=(row, col, pixel)))
 
 # Encodes a row of pixels using TimeDistributed Wrapper.
-encoded_rows = TimeDistributed(LSTM(row_hidden))(x)
+model.add(TimeDistributed(Conv2D(32, kernel_size=(1, 1),
+                 activation='relu'), input_shape=(1,height,width,channels)))
 
 # Encodes columns of encoded rows.
-encoded_columns = LSTM(col_hidden)(encoded_rows)
+# model.add(LSTM(col_hidden))
+# model.add(Conv2D(32, kernel_size=(1, 1),
+#                  activation='relu',
+#                  input_shape=(height,width,channels)))
+model.add(Dropout(0.15))
+model.add(MaxPool3D(pool_size=(1,1,2)))
+model.add(Conv3D(32, (1, 1, 1), activation='relu'))
+model.add(Conv3D(64, (1, 1, 1), activation='relu'))
+model.add(Conv3D(128, (1, 1, 1), activation='relu'))
+#model.add(SeparableConv3D(128, (1,1,1)))
+model.add(Conv3D(64, (1, 1, 1), activation='relu'))
+model.add(Conv3D(64, (1, 1, 1), activation='relu'))
+model.add(Conv3D(3, (1, 1, 1), padding="same", activation="relu"))
 
-model.add(Conv2D(32, kernel_size=(1, 1),
-                 activation='relu',
-                 input_shape=(height,width,channels)))
-model.add(MaxPool2D(pool_size=(1,2)))
-model.add(Conv2D(32, (1, 1), activation='relu'))
-model.add(Conv2D(64, (1, 1), activation='relu'))
-model.add(Conv2D(128, (1, 1), activation='relu'))
-model.add(SeparableConv2D(128, (1,1)))
-model.add(Conv2D(64, (1, 1), activation='relu'))
-model.add(Conv2D(32, (1, 1), activation='relu'))
-model.add(Conv2D(3, (1, 1), padding="same", activation="relu"))
-
-#model.add(Dense(32))
+model.add(Dense(3))
 model.add(Activation('relu'))
 #model.add(Embedding(256, output_dim=256))
 # model.add(LSTM( 128,
