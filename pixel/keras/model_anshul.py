@@ -16,7 +16,7 @@ import keras.callbacks
 import numpy as np
 
 batch_size = 32
-epochs = 300
+epochs = 3000
 hidden_units = 100
 attend_size=2
 
@@ -61,16 +61,19 @@ class PeriodicImageGenerator(keras.callbacks.Callback):
         self.epochs += 1
         if self.epochs % 25 == 0:
             testVal = x_train[np.random.randint(len(x_train)-1)]
-            testVal = testVal.reshape(testVal.shape[1:])
-            image = Image.fromarray(testVal.astype('uint8'), 'RGB')
-            image.save('image'+str(self.epochs)+'.jpg')
+            for i in xrange(attend_size+1):
+                testVal_ind = testVal[i]
+                image = Image.fromarray(testVal_ind.astype('uint8'), 'RGB')
+                image.save('image_'+str(self.epochs)+'_'+str(i)+'.jpg')
 
-            testVal=testVal.reshape(1, 1, height, width, channels)
+            testVal=testVal.reshape(1,attend_size+1, height, width, channels)
 
             val=model.predict(testVal,1,verbose=1)
-            val=val.reshape(32,32,3)
-            image = Image.fromarray(val.astype('uint8'), 'RGB')
-            image.save('image'+str(self.epochs)+'_predicted.jpg')
+            val=val.reshape(3,32,32,3)
+            for i in xrange(attend_size+1):
+                val_ind = val[i]
+                image = Image.fromarray(val_ind.astype('uint8'), 'RGB')
+                image.save('image_'+str(self.epochs)+'_'+str(i)+'_predicted.jpg')
             # Do stuff like printing metrics
 
 PIG = PeriodicImageGenerator()
@@ -82,9 +85,11 @@ col_hidden = 512
 #model.add(Input(shape=(row, col, pixel)))
 
 # Encodes a row of pixels using TimeDistributed Wrapper.
+model.add(ConvLSTM2D(filters=3, kernel_size=(1, 1),
+                 input_shape=(None, height,width,channels), return_sequences=True))
 model.add(TimeDistributed(Conv2D(32, kernel_size=(1, 1),
                  activation='relu'), input_shape=(attend_size+1,height,width,channels)))
-
+model.add(TimeDistributed(Dense(32)))
 # Encodes columns of encoded rows.
 # model.add(LSTM(col_hidden))
 # model.add(Conv2D(32, kernel_size=(1, 1),
