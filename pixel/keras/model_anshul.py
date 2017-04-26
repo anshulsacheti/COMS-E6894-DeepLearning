@@ -129,17 +129,17 @@ model.fit(x_train, y_train,
 
 # Test model
 for i in xrange(x_test.shape[0]):
-
-    testVal = x_test[i]
-    image = Image.fromarray(testVal.astype('uint8'), 'RGB')
-    image.save('image'+str(i)+'_Test.jpg')
-
-    testVal=testVal.reshape(1, height, width, channels)
-
+    for j in xrange(attend_size+1):
+        testVal = x_test[i,j]
+        image = Image.fromarray(testVal.astype('uint8'), 'RGB')
+        image.save('image'+str(i)+"_"+str(j)+'_Test.jpg')
+    testVal=x_test[i].reshape(1, attend_size+1, height, width, channels)
     val=model.predict(testVal,1,verbose=1)
-    val=val.reshape(32,32,3)
-    image = Image.fromarray(val.astype('uint8'), 'RGB')
-    image.save('image'+str(i)+'_Test_predicted.jpg')
+    val=val.reshape(attend_size+1,32,32,3)
+    for j in xrange(attend_size+1):
+        testVal = val[j]
+        image = Image.fromarray(testVal.astype('uint8'), 'RGB')
+        image.save('image'+str(i)+"_"+str(j)+'_Test_predicted.jpg')
 
 # Save out model
 model.save('kerasModel_anshul.h5')
